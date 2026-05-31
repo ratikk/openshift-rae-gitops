@@ -1,0 +1,9 @@
+# ESO supports both OwnNamespace and AllNamespaces. AllNamespaces (spec: {})
+# is the HHSC pattern — secrets can be created in any namespace.
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: external-secrets-og
+  namespace: external-secrets
+spec: {}

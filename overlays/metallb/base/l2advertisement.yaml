@@ -1,0 +1,12 @@
+# L2 mode — ARP-based announcement. Works for in-cluster reachability.
+# For cross-VPC or external reachability, you'd add the external NLB :443
+# (configured separately by the Terraform/IngressController stack).
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: rae-l2adv
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+    - rae-pool

@@ -1,0 +1,11 @@
+# Pool MUST be a CIDR that won't conflict with EC2 ENIs or AWS-assigned IPs.
+# In our AWS lab the cluster VPC is 10.0.0.0/16 and we carve out 10.0.10.0/24.
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: rae-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 10.0.10.0/24

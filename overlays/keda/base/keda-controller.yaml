@@ -1,0 +1,10 @@
+# Deploys the KEDA controller after the operator is installed.
+# Single-instance, watches all namespaces by default.
+---
+apiVersion: keda.sh/v1alpha1
+kind: KedaController
+metadata:
+  name: keda
+  namespace: openshift-keda
+spec:
+  watchNamespace: ""

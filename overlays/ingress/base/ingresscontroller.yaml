@@ -1,0 +1,21 @@
+# IngressController in LoadBalancerService mode.
+# Argo CD applies this — but the default IngressController already exists from
+# install. Argo's sync uses ServerSideApply (syncOption set in apps/ingress.yaml)
+# so this merges with the existing resource cleanly.
+#
+# Issue #3 fix from failure catalog: switching endpointPublishingStrategy on an
+# existing IC has historically required delete-and-recreate. Server-side apply
+# in recent OpenShift versions handles this better, but if Argo gets stuck in
+# OutOfSync, manually delete the IC and let Argo re-create.
+---
+apiVersion: operator.openshift.io/v1
+kind: IngressController
+metadata:
+  name: default
+  namespace: openshift-ingress-operator
+spec:
+  replicas: 2
+  endpointPublishingStrategy:
+    type: LoadBalancerService
+    loadBalancer:
+      scope: External

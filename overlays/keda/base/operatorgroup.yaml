@@ -1,0 +1,9 @@
+# Custom Metrics Autoscaler (RH-supported KEDA) — supports OwnNamespace.
+# Using AllNamespaces for consistency with the HHSC architecture.
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-keda-og
+  namespace: openshift-keda
+spec: {}

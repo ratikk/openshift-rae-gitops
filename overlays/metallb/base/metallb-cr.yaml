@@ -4,6 +4,11 @@ kind: MetalLB
 metadata:
   name: metallb
   namespace: metallb-system
+  annotations:
+    # Wave 5: applies after the operator has installed and the metallb.io
+    # CRDs exist on the cluster.
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   nodeSelector:
     node-role.kubernetes.io/worker: ""

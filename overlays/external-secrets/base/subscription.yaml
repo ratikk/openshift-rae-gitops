@@ -4,6 +4,10 @@ kind: Subscription
 metadata:
   name: external-secrets-operator
   namespace: external-secrets
+  annotations:
+    # Wave 0: applies after OperatorGroup. OLM picks this up, installs
+    # the operator, which creates the external-secrets.io CRDs.
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   channel: stable
   installPlanApproval: Automatic

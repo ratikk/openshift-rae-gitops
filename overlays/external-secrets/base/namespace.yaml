@@ -3,3 +3,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: external-secrets
+  annotations:
+    # Wave -2: apply before everything else so the namespace exists
+    # by the time OperatorGroup/Subscription are created.
+    argocd.argoproj.io/sync-wave: "-2"

@@ -7,6 +7,10 @@ kind: L2Advertisement
 metadata:
   name: rae-l2adv
   namespace: metallb-system
+  annotations:
+    # Wave 10: same wave as IPAddressPool — both depend on MetalLB being up.
+    argocd.argoproj.io/sync-wave: "10"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   ipAddressPools:
     - rae-pool

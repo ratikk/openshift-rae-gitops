@@ -6,6 +6,11 @@ kind: IPAddressPool
 metadata:
   name: rae-pool
   namespace: metallb-system
+  annotations:
+    # Wave 10: after the MetalLB CR itself is healthy (which deploys the
+    # actual MetalLB controllers and speakers in the cluster).
+    argocd.argoproj.io/sync-wave: "10"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   addresses:
     - 10.0.10.0/24

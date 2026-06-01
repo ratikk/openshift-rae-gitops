@@ -6,4 +6,7 @@ kind: OperatorGroup
 metadata:
   name: external-secrets-og
   namespace: external-secrets
+  annotations:
+    # Wave -1: after the namespace exists, before the Subscription.
+    argocd.argoproj.io/sync-wave: "-1"
 spec: {}

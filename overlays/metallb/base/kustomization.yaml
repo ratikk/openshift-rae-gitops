@@ -2,6 +2,15 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: metallb-system
 
+# Sync wave ordering is set per-resource via metadata.annotations:
+#   namespace.yaml             → wave -2
+#   operatorgroup.yaml         → wave -1
+#   subscription.yaml          → wave  0  (OLM installs operator after this)
+#   metallb-cr.yaml            → wave  5  (CRDs exist; MetalLB controller deploys)
+#   ipaddresspool.yaml         → wave 10  (MetalLB is up; can accept pools)
+#   l2advertisement.yaml       → wave 10  (same)
+# Argo CD waits for each wave to be Healthy before starting the next.
+
 resources:
   - namespace.yaml
   - operatorgroup.yaml

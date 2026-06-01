@@ -2,9 +2,23 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: vault-system
 
+# This overlay deliberately does NOT include the StatefulSet, Service,
+# ConfigMap, or ServiceAccount — those come from the official HashiCorp
+# Vault Helm chart, loaded by the Argo CD Application as a second source.
+#
+# What we provide here is the OpenShift-specific glue:
+#   namespace.yaml          → labels for cluster-monitoring integration
+#   scc-binding.yaml        → grant vault SA the nonroot-v2 SCC
+#   vault-bootstrap-job.yaml → init + unseal + k8s auth method setup
+#
+# Sync waves (see annotations on each):
+#   -2  Namespace
+#   -1  SCC binding (depends on namespace)
+#    9  Bootstrap ServiceAccount + Role + RoleBinding
+#   10  Bootstrap Job (depends on Helm chart's StatefulSet being up;
+#                       runs as PostSync hook so it follows the rest)
+
 resources:
   - namespace.yaml
-  - serviceaccount.yaml
-  - configmap.yaml
-  - statefulset.yaml
-  - service.yaml
+  - scc-binding.yaml
+  - vault-bootstrap-job.yaml

@@ -1,0 +1,37 @@
+# =============================================================================
+# scc-binding.yaml — grant the vault ServiceAccount the right SCC
+#
+# Vault's container runs as UID 100 (the vault user inside the image). On
+# OpenShift, the default 'restricted-v2' SCC assigns a random UID in the
+# namespace's allowed range and blocks running as a specific UID.
+#
+# The chart with global.openshift=true sets up things to work with the
+# 'restricted-v2' SCC by NOT requesting specific UIDs / capabilities, so
+# strictly speaking this binding may not be required.
+#
+# BUT — some Vault subcomponents (init containers, the readiness probe with
+# vault status command) work most reliably when the container can keep the
+# uid the image declares. The 'nonroot-v2' SCC allows that.
+#
+# We grant 'nonroot-v2' (NOT 'anyuid' which is too broad) to the vault SA.
+# This is the minimum elevation needed. Production HHSC may use a custom
+# SCC with even tighter constraints.
+# =============================================================================
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vault-scc-nonroot
+  namespace: vault-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  # OpenShift auto-generates a ClusterRole 'system:openshift:scc:nonroot-v2'
+  # that grants 'use' on the nonroot-v2 SCC. We bind to it.
+  name: system:openshift:scc:nonroot-v2
+subjects:
+  - kind: ServiceAccount
+    name: vault
+    namespace: vault-system

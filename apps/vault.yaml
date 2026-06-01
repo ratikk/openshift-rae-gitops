@@ -1,23 +1,35 @@
 # =============================================================================
 # apps/vault.yaml — Argo CD Application for HashiCorp Vault on OpenShift
 #
-# Switches from custom kustomize overlay (which crashed because OpenShift's
-# default SCC blocks the capabilities Vault's image needs) to the OFFICIAL
-# HashiCorp Vault Helm chart with global.openshift=true.
+# ============================== LAB-ONLY POSTURE ==============================
+# Currently configured for server.dev mode (in-memory storage, auto-unseal,
+# fixed root token = "root"). Required because this cluster does not yet
+# have a StorageClass provisioner installed (platform: none install means
+# cluster-storage-operator doesn't auto-install AWS EBS CSI driver).
 #
-# Architecture decisions encoded here:
-#   - Single-replica Raft storage. Swapping to 3-replica HA is one values
-#     change later; Raft is forward-compatible with HA.
-#   - Manual unseal required after first install (see overlays/vault/README
-#     and bin/vault-bootstrap.sh). Production should swap this for KMS
-#     auto-unseal — that needs an AWS KMS key + IRSA, deferred.
-#   - Kubernetes auth method bootstrapped post-init via a one-shot Job.
-#     This lets ESO authenticate without a hardcoded root token.
+# NEXT-SESSION WORK:
+#   1. Install upstream Kubernetes-SIGs AWS EBS CSI Helm chart via a new
+#      overlays/storage/base + apps/storage.yaml. This creates a gp3-csi
+#      StorageClass for the cluster.
+#   2. Switch Vault below from server.dev.enabled=true to:
+#         server.dev.enabled: false
+#         server.standalone.enabled: true
+#         server.standalone.config: (Raft config block we had before)
+#         server.dataStorage:
+#           enabled: true
+#           size: 10Gi
+#           storageClass: gp3-csi
+#   3. The bootstrap Job (still in overlays/vault/base) will then handle
+#      init + unseal + k8s auth method setup against the persistent Vault.
 #
-# Sync waves (operator-then-CR pattern, same as keda/external-secrets/metallb):
-#   wave -2: Namespace + ServiceAccount + SCC binding
-#   wave  0: Helm release (this Application)
-#   wave  5: Bootstrap job (configures Vault's k8s auth) — separate manifest
+# IMPACT OF DEV MODE TONIGHT:
+#   - Vault data lost on every pod restart (no persistence)
+#   - k8s auth method config also lost on restart — bootstrap Job re-runs
+#     each Argo sync as a PostSync hook, so config is re-applied
+#   - Root token is the literal string "root" — NEVER use this in production
+#
+# DEV MODE IS PRODUCTION-INAPPROPRIATE BUT LAB-COMPLETE. Accepted to unblock
+# Stage 1 acceptance while storage infrastructure is built properly later.
 # =============================================================================
 ---
 apiVersion: argoproj.io/v1alpha1
@@ -30,73 +42,43 @@ metadata:
 spec:
   project: default
 
-  # Multi-source: combine the Helm chart (from HashiCorp) with our overlay
-  # for the things the chart doesn't ship (namespace labels, SCC binding,
-  # bootstrap job for k8s auth method).
   sources:
-    # Source 1: The official HashiCorp Vault Helm chart
+    # Source 1: The official HashiCorp Vault Helm chart in dev mode
     - repoURL: https://helm.releases.hashicorp.com
       chart: vault
-      targetRevision: 0.29.1  # pin a known-good version
+      targetRevision: 0.29.1
       helm:
         releaseName: vault
-        # Inline values. For larger overrides, switch to valueFiles referencing
-        # a file in the gitops repo. Kept inline for visibility of the few
-        # decisions we make.
         values: |
           global:
-            # MOST IMPORTANT FLAG ON OPENSHIFT: sets compatible security
-            # contexts, drops the CAP_IPC_LOCK requirement, uses the
-            # OpenShift-friendly init container patterns.
             openshift: true
-            tlsDisable: true   # lab only — production should enable TLS
+            tlsDisable: true
 
           server:
-            # Single replica with Raft. Production swaps replicas to 3 and
-            # adjusts raft.config to include peer addresses.
+            # ====== DEV MODE: lab only ======
+            # In-memory storage, auto-initialized, auto-unsealed.
+            # Switch to standalone+raft+dataStorage in next session.
+            dev:
+              enabled: true
+              devRootToken: "root"
+
+            # These sections are no-ops while dev.enabled=true but kept
+            # as breadcrumbs for next session's switchover:
             ha:
               enabled: false
-
-            # We use Raft (Integrated Storage) even with replicas=1 so the
-            # storage interface is identical to HA when we scale up later.
             standalone:
-              enabled: true
-              config: |
-                ui = true
-                listener "tcp" {
-                  address = "[::]:8200"
-                  cluster_address = "[::]:8201"
-                  tls_disable = true
-                }
-                storage "raft" {
-                  path = "/vault/data"
-                }
-
-            # Persistent storage — required for Raft. Uses the cluster's
-            # default StorageClass (gp3 in our AWS lab).
+              enabled: false
             dataStorage:
-              enabled: true
-              size: 10Gi
-              storageClass: null   # use cluster default
+              enabled: false
 
-            # OpenShift puts kube-state-metrics and Prometheus monitoring
-            # under openshift-monitoring; the chart's serviceMonitor target
-            # is the right pattern for us once we add monitoring.
             serviceAccount:
               create: true
               name: vault
-              # Annotations needed if we later wire IRSA for KMS auto-unseal.
-              # Lab: empty.
               annotations: {}
 
             readinessProbe:
               enabled: true
-              # The default probe checks sealed=200 standby=429 etc.
-              # We keep the default; manual unseal will be required.
 
-          # We DO NOT deploy the agent injector for the lab — it adds a
-          # mutating admission webhook and isn't needed since ESO is doing
-          # the secret delivery. Production may want both.
           injector:
             enabled: false
 
@@ -115,7 +97,7 @@ spec:
 
   syncPolicy:
     automated:
-      prune: false      # do NOT prune — Vault storage is sacred even in lab
+      prune: false
       selfHeal: true
     syncOptions:
       - CreateNamespace=true

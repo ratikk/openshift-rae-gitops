@@ -1,26 +1,19 @@
 # =============================================================================
 # vault-bootstrap-job.yaml — automate Vault init + unseal + auth method setup
 #
-# Pattern: a single-container Job that runs after the Vault Helm chart has
-# deployed the StatefulSet. Talks to Vault via its HTTP API (no Vault CLI
-# install needed) and to Kubernetes via curl with the projected SA token.
+# Dev-mode aware: when Vault runs with server.dev.enabled=true, the chart
+# auto-initializes and auto-unseals with a fixed root token. This Job
+# detects that case and skips init/unseal, then configures Kubernetes auth
+# method against the dev root token.
 #
-# What it does (idempotent on re-run):
-#   1. Wait until vault-0 responds (StatefulSet has scheduled, pod is up).
-#   2. If Vault not yet initialized:
-#       a) Call POST /v1/sys/init → get unseal keys + root token
-#       b) Persist init payload to Secret `vault-init-credentials` in this
-#          namespace. **LAB-ONLY pattern** — production should use KMS
-#          auto-unseal so keys never live in K8s storage.
-#   3. If Vault initialized but sealed, fetch the existing Secret and unseal.
-#   4. Enable Kubernetes auth method.
-#   5. Write 'eso-reader' policy and 'eso' role binding the external-secrets
-#      operator's ServiceAccount to the policy.
+# Non-dev (production-shape) flow:
+#   1. Wait for Vault HTTP API
+#   2. Init Vault if not initialized, persist payload to vault-init-credentials
+#   3. Unseal Vault using stored keys
+#   4. Enable Kubernetes auth method
+#   5. Create eso-reader policy + eso role
 #
-# Image choice: bitnami/kubectl provides curl and kubectl in one image.
-# Smaller than hashicorp/vault, doesn't need package installs.
-#
-# Sync wave 10: runs after vault-0 pod is up (Helm chart is wave 0 by default).
+# Idempotent. Runs as PostSync hook so it re-runs after each Argo sync.
 # =============================================================================
 ---
 apiVersion: v1
@@ -99,15 +92,14 @@ spec:
               value: "external-secrets-operator-controller-manager"
             - name: ESO_SA_NAMESPACE
               value: "external-secrets"
+            - name: DEV_ROOT_TOKEN
+              value: "root"
           command:
             - /bin/bash
             - -c
             - |
               set -euo pipefail
 
-              # -----------------------------------------------------------------
-              # Helper: wait for Vault to respond at all (up to 5 min)
-              # -----------------------------------------------------------------
               echo "==> [1/5] Waiting for Vault HTTP API to respond..."
               for i in $(seq 1 60); do
                 code=$(curl -s -o /dev/null -w "%{http_code}" "$VAULT_ADDR/v1/sys/health?standbyok=true&sealedok=true&uninitcode=200" || echo "000")
@@ -119,73 +111,78 @@ spec:
                 sleep 5
               done
 
-              # -----------------------------------------------------------------
-              # Step 2: Initialize if needed
-              # -----------------------------------------------------------------
               echo "==> [2/5] Checking init status..."
               INIT_STATUS=$(curl -s "$VAULT_ADDR/v1/sys/init")
               IS_INITIALIZED=$(echo "$INIT_STATUS" | grep -oE '"initialized":(true|false)' | cut -d: -f2)
+              echo "  initialized=$IS_INITIALIZED"
+
+              ROOT_TOKEN=""
 
               if [ "$IS_INITIALIZED" = "false" ]; then
+                # PRODUCTION-SHAPE PATH (no auto-init): we initialize + persist keys
                 echo "  Vault is NOT initialized. Initializing..."
                 INIT_RESP=$(curl -s -X POST -d '{"secret_shares":5,"secret_threshold":3}' "$VAULT_ADDR/v1/sys/init")
-                # Save the entire init response (keys + root token) to a K8s Secret
                 echo "$INIT_RESP" > /tmp/init.json
 
-                # Create or update the K8s Secret (idempotent)
                 kubectl -n "$NAMESPACE" create secret generic "$VAULT_INIT_SECRET" \
                   --from-file=init.json=/tmp/init.json \
                   --dry-run=client -o yaml | kubectl apply -f -
                 echo "  Init payload saved to Secret $VAULT_INIT_SECRET"
+
+                ROOT_TOKEN=$(grep -oE '"root_token":"[^"]+"' /tmp/init.json | sed 's/"root_token":"//;s/"//')
               else
-                echo "  Vault already initialized; loading existing keys from Secret..."
-                kubectl -n "$NAMESPACE" get secret "$VAULT_INIT_SECRET" \
-                  -o jsonpath='{.data.init\.json}' | base64 -d > /tmp/init.json
+                # DEV-MODE PATH OR ALREADY-INITIALIZED:
+                # If the vault-init-credentials Secret exists, use its root token.
+                # Otherwise (e.g. dev mode where chart auto-inits), use the known
+                # dev root token from env.
+                echo "  Vault already initialized."
+                if kubectl -n "$NAMESPACE" get secret "$VAULT_INIT_SECRET" >/dev/null 2>&1; then
+                  echo "  Found existing init credentials Secret"
+                  kubectl -n "$NAMESPACE" get secret "$VAULT_INIT_SECRET" \
+                    -o jsonpath='{.data.init\.json}' | base64 -d > /tmp/init.json
+                  ROOT_TOKEN=$(grep -oE '"root_token":"[^"]+"' /tmp/init.json | sed 's/"root_token":"//;s/"//')
+                else
+                  echo "  No init credentials Secret found — assuming dev mode."
+                  ROOT_TOKEN="$DEV_ROOT_TOKEN"
+                fi
               fi
 
-              # -----------------------------------------------------------------
-              # Step 3: Unseal if sealed
-              # -----------------------------------------------------------------
               echo "==> [3/5] Checking seal status..."
               SEAL_STATUS=$(curl -s "$VAULT_ADDR/v1/sys/seal-status")
               IS_SEALED=$(echo "$SEAL_STATUS" | grep -oE '"sealed":(true|false)' | cut -d: -f2)
 
-              if [ "$IS_SEALED" = "true" ]; then
+              if [ "$IS_SEALED" = "true" ] && [ -f /tmp/init.json ]; then
                 echo "  Vault is sealed. Applying 3 unseal keys..."
-                # Extract first 3 keys from the init payload
                 for i in 0 1 2; do
-                  KEY=$(python3 -c "import json,sys; d=json.load(open('/tmp/init.json')); print(d['keys_base64'][$i])" 2>/dev/null \
-                       || grep -oE '"keys_base64":\[[^]]+\]' /tmp/init.json \
-                          | sed 's/"keys_base64":\[//;s/\]$//' \
-                          | tr ',' '\n' | sed -n "$((i+1))p" | tr -d '"')
+                  KEY=$(grep -oE '"keys_base64":\[[^]]+\]' /tmp/init.json \
+                        | sed 's/"keys_base64":\[//;s/\]$//' \
+                        | tr ',' '\n' | sed -n "$((i+1))p" | tr -d '"')
                   curl -s -X POST -d "{\"key\":\"$KEY\"}" "$VAULT_ADDR/v1/sys/unseal" > /dev/null
                 done
                 echo "  Unseal complete."
               else
-                echo "  Vault already unsealed."
+                echo "  Vault not sealed (or dev mode auto-unseal)."
               fi
 
-              # -----------------------------------------------------------------
-              # Step 4: Login with root token
-              # -----------------------------------------------------------------
-              echo "==> [4/5] Authenticating with root token..."
-              ROOT_TOKEN=$(grep -oE '"root_token":"[^"]+"' /tmp/init.json | sed 's/"root_token":"//;s/"//')
+              echo "==> [4/5] Verifying root token works..."
               if [ -z "$ROOT_TOKEN" ]; then
-                echo "ERROR: could not extract root token from init payload" >&2
+                echo "ERROR: no root token available" >&2
                 exit 1
               fi
+              VERIFY=$(curl -s -H "X-Vault-Token: $ROOT_TOKEN" "$VAULT_ADDR/v1/sys/auth")
+              echo "$VERIFY" | grep -q '"errors"' && {
+                echo "ERROR: root token rejected by Vault. Response: $VERIFY" >&2
+                exit 1
+              }
 
-              # -----------------------------------------------------------------
-              # Step 5: Configure Kubernetes auth method + policy + role
-              # -----------------------------------------------------------------
               echo "==> [5/5] Configuring Kubernetes auth method..."
 
-              # Enable k8s auth (idempotent — 400 if already enabled is fine)
+              # Enable k8s auth (idempotent)
               curl -s -H "X-Vault-Token: $ROOT_TOKEN" -X POST \
                 -d '{"type":"kubernetes"}' \
                 "$VAULT_ADDR/v1/sys/auth/kubernetes" > /tmp/auth-enable.resp || true
 
-              # Configure the k8s auth method to talk to the cluster API
+              # Configure k8s auth to talk to the cluster API
               curl -s -H "X-Vault-Token: $ROOT_TOKEN" -X POST \
                 -d "{\"kubernetes_host\":\"https://kubernetes.default.svc\"}" \
                 "$VAULT_ADDR/v1/auth/kubernetes/config" > /tmp/auth-config.resp
@@ -197,7 +194,7 @@ spec:
                 -d "$POLICY_JSON" \
                 "$VAULT_ADDR/v1/sys/policies/acl/eso-reader" > /tmp/policy.resp
 
-              # Write k8s auth role 'eso' bound to the external-secrets operator SA
+              # Write k8s auth role 'eso'
               ROLE_JSON=$(printf '{"bound_service_account_names":"%s","bound_service_account_namespaces":"%s","policies":"eso-reader","ttl":"24h"}' \
                 "$ESO_SA_NAME" "$ESO_SA_NAMESPACE")
               curl -s -H "X-Vault-Token: $ROOT_TOKEN" -X POST \
@@ -205,5 +202,5 @@ spec:
                 "$VAULT_ADDR/v1/auth/kubernetes/role/eso" > /tmp/role.resp
 
               echo "==> Done. Vault is initialized, unsealed, and configured for ESO."
-              curl -s -H "X-Vault-Token: $ROOT_TOKEN" "$VAULT_ADDR/v1/sys/seal-status"
+              curl -s -H "X-Vault-Token: $ROOT_TOKEN" "$VAULT_ADDR/v1/sys/seal-status" | head -5
               echo

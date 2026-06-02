@@ -29,6 +29,16 @@ image:
   repository: quay.io/openshifttest/hello-openshift
   tag: "1.2.0"
 
+# Container securityContext. Leave as {} to let OpenShift's restricted-v2 SCC
+# assign a UID from the namespace's allocated range.
+# Override per-app for clusters with custom SCCs (e.g., HHSC prod with anyuid binding).
+# Example:
+#   podSecurityContext:
+#     runAsNonRoot: true
+#     runAsUser: 1000
+#     allowPrivilegeEscalation: false
+podSecurityContext: {}
+
 ingress:
   enabled: true
   className: openshift-default

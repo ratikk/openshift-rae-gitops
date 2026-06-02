@@ -1,0 +1,60 @@
+# Base values for hello-openshift
+# This file mirrors HHSC's deployment/poc/values.yaml shape.
+# Per-app customizations override here.
+
+# Namespace this app deploys into.
+# HHSC's chart referenced .Values.namespace but never set it in values.yaml.
+# We make that explicit here.
+namespace: hello-openshift
+
+replicaCount: 2
+
+annotations: {}
+
+labels:
+  app.kubernetes.io/app: hello-openshift
+  app.kubernetes.io/version: "1.2.0"
+  app.kubernetes.io/component: lab
+  app.kubernetes.io/managed-by: ArgoCD
+  environment: lab
+
+serviceAccountName: hello-openshift
+serviceAccount: hello-openshift
+
+# imagePullSecret left empty for this public-image deployment.
+# When pulling from artifactory or quay-private, set to a Secret name in the namespace.
+imagePullSecret: ""
+
+image:
+  repository: quay.io/openshifttest/hello-openshift
+  tag: "1.2.0"
+
+ingress:
+  enabled: true
+  className: openshift-default
+  annotations: {}
+  host: hello-openshift.apps.rae.ocp.tiers-insight.com
+  path: /
+  pathType: Prefix
+
+service:
+  type: ClusterIP
+  port: 80
+  targetport: 8080
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "64Mi"
+  limits:
+    cpu: "500m"
+    memory: "256Mi"
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+
+environmentVariables:
+  ENV: lab
+  CLUSTER: rae

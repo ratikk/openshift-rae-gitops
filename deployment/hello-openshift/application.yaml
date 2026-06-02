@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hello-openshift
+  namespace: openshift-gitops
+  labels:
+    name: hello-openshift
+spec:
+  project: rae-lab-project
+
+  source:
+    repoURL: https://github.com/ratikk/openshift-rae-gitops.git
+    targetRevision: main
+    path: deployment/hello-openshift
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: hello-openshift
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - Validate=true
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

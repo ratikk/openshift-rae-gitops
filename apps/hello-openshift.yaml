@@ -1,3 +1,15 @@
+# =============================================================================
+# apps/hello-openshift.yaml — hello-openshift Argo CD Application
+#
+# This file lives in apps/ so app-of-apps picks it up automatically.
+# Previously this Application YAML lived in deployment/hello-openshift/
+# alongside the Helm chart, which meant it had to be applied manually
+# (and was lost on every cluster rebuild).
+#
+# Moving here = survives cluster rebuilds via app-of-apps.
+# The Helm chart itself still lives in deployment/hello-openshift/.
+# =============================================================================
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -7,16 +19,13 @@ metadata:
     name: hello-openshift
 spec:
   project: rae-lab-project
-
   source:
     repoURL: https://github.com/ratikk/openshift-rae-gitops.git
     targetRevision: main
     path: deployment/hello-openshift
-
   destination:
     server: https://kubernetes.default.svc
     namespace: hello-openshift
-
   syncPolicy:
     automated:
       prune: true

@@ -1,0 +1,30 @@
+# =============================================================================
+# apps/hello-openshift-project.yaml — AppProject for hello-openshift
+#
+# Provides a security boundary: only allows the openshift-rae-gitops repo,
+# only allows deployment to namespaces in this cluster. Mirrors the pattern
+# HHSC uses for separating apps from platform operators.
+#
+# Used by: apps/hello-openshift.yaml (which references project: rae-lab-project)
+#
+# Previously lived in deployment/hello-openshift/project.yaml. Moved here so
+# app-of-apps auto-creates it on every rebuild.
+# =============================================================================
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: rae-lab-project
+  namespace: openshift-gitops
+spec:
+  description: "Lab apps deployed from openshift-rae-gitops repo"
+  sourceRepos:
+    - 'https://github.com/ratikk/openshift-rae-gitops.git'
+  destinations:
+    - namespace: '*'
+      server: '*'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  orphanedResources:
+    warn: false

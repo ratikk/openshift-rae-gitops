@@ -80,7 +80,12 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: bootstrap
-          image: bitnami/kubectl:1.31
+          # Switched from bitnami/kubectl:1.31 (returned ErrImagePull,
+          # likely docker.io rate limiting or tag changes).
+          # Using kubernetes.io official kubectl image — no auth needed,
+          # no rate limits, kubectl binary at /bin/kubectl.
+          # (Tried origin-cli first but kubectl symlink not guaranteed there.)
+          image: registry.k8s.io/kubectl:v1.31.0
           env:
             - name: VAULT_ADDR
               value: "http://vault.vault-system.svc:8200"

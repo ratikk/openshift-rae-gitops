@@ -17,4 +17,5 @@ namespace: external-secrets
 
 resources:
   - namespace.yaml
+  - token-creator-rbac.yaml
   - clustersecretstore.yaml

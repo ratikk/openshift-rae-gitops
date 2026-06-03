@@ -46,6 +46,7 @@ ingress:
   # the generated Route's TLS termination behavior.
   annotations:
     route.openshift.io/termination: edge
+    route.openshift.io/insecureEdgeTerminationPolicy: Redirect
     haproxy.router.openshift.io/disable_cookies: "true"
   host: hello-openshift.apps.rae.ocp.tiers-insight.com
   path: /

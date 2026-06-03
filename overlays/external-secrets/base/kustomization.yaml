@@ -2,17 +2,19 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: external-secrets
 
-# Sync wave ordering is set per-resource via metadata.annotations:
-#   namespace.yaml             → wave -2
-#   operatorgroup.yaml         → wave -1
-#   subscription.yaml          → wave  0  (OLM installs operator after this)
-#   operatorconfig.yaml        → wave  3  (triggers Layer 2 controller deploy)
-#   clustersecretstore.yaml    → wave  5  (CRDs from operator must exist by now)
-# Argo CD waits for each wave to be Healthy before starting the next.
+# This overlay is now SLIM — it only provides what the upstream Helm chart
+# (loaded by the Argo CD Application as a separate source) does NOT manage:
+#
+#   namespace.yaml             → creates external-secrets namespace
+#   clustersecretstore.yaml    → the Vault-backed ClusterSecretStore
+#
+# The upstream chart handles: Deployment, Service, CRDs, ServiceAccount,
+# RBAC, webhooks. Nothing for us to add for the operator install itself.
+#
+# Sync wave ordering (per-resource via metadata.annotations):
+#   namespace.yaml             → wave -2  (apply first)
+#   clustersecretstore.yaml    → wave  5  (after CRDs from Helm chart exist)
 
 resources:
   - namespace.yaml
-  - operatorgroup.yaml
-  - subscription.yaml
-  - operatorconfig.yaml
   - clustersecretstore.yaml

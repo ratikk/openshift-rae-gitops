@@ -6,6 +6,7 @@ namespace: external-secrets
 #   namespace.yaml             → wave -2
 #   operatorgroup.yaml         → wave -1
 #   subscription.yaml          → wave  0  (OLM installs operator after this)
+#   operatorconfig.yaml        → wave  3  (triggers Layer 2 controller deploy)
 #   clustersecretstore.yaml    → wave  5  (CRDs from operator must exist by now)
 # Argo CD waits for each wave to be Healthy before starting the next.
 
@@ -13,4 +14,5 @@ resources:
   - namespace.yaml
   - operatorgroup.yaml
   - subscription.yaml
+  - operatorconfig.yaml
   - clustersecretstore.yaml

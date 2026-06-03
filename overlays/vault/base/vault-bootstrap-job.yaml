@@ -89,7 +89,9 @@ spec:
             - name: NAMESPACE
               value: "vault-system"
             - name: ESO_SA_NAME
-              value: "external-secrets-operator-controller-manager"
+              # Updated to match the upstream Helm chart's controller SA
+              # (replaced the OLM wrapper SA: external-secrets-operator-controller-manager)
+              value: "external-secrets"
             - name: ESO_SA_NAMESPACE
               value: "external-secrets"
             - name: DEV_ROOT_TOKEN

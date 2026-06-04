@@ -1,23 +1,19 @@
 # =============================================================================
-# apps/applicationset-idev.yaml — Phase 2 · multi-cluster ApplicationSet
+# apps/applicationset-idev.yaml — per-env release via per-env values files
 #
-# Lives in apps/ so app-of-apps picks it up automatically (survives rebuilds).
+# RELEASE MODEL (HHS-style):
+#   Jenkins  → builds image, pushes to JFrog
+#   Engineer → edits image.tag in deployment/hello-openshift/values-idevN.yaml,
+#              commits, pushes
+#   Argo CD  → sees the one-line diff, auto-syncs that ONE environment (~3 min)
 #
-# Generates THREE Argo CD Applications — idev1, idev2, idev3 — from one
-# list generator. Each deploys the hello-openshift Helm chart (same chart as
-# apps/hello-openshift.yaml) into its own namespace ON THE SPOKE cluster.
+# Each generated Application points at the SAME chart but loads a DIFFERENT
+# per-env values file (values-idev1.yaml, etc.) via helm.valueFiles. That is
+# what makes idev1/2/3 independent release streams: bumping idev1's tag does
+# not touch idev2 or idev3.
 #
-# Targets the spoke by NAME (destination.name: idev), which is the name the
-# cluster Secret registered via register-spoke-to-hub.yml uses. This is why we
-# use destination.name (not server URL) — the name is stable across spoke
-# rebuilds even though the API URL/CA change.
-#
-# Proves P2-A-07 (3 generated apps) and P2-A-08 (3 hello-openshift instances
-# running on the spoke, one per idev namespace).
-#
-# PREREQS:
-#   - Spoke registered to the hub Argo CD (cluster Secret name: idev).
-#   - app-of-apps syncing apps/ on the hub.
+# "Trigger only on tag change" is automatic: Argo only syncs when the desired
+# state in git differs from the cluster. No tag change → no diff → no deploy.
 # =============================================================================
 ---
 apiVersion: argoproj.io/v1alpha1
@@ -25,8 +21,6 @@ kind: ApplicationSet
 metadata:
   name: idev-hello-openshift
   namespace: openshift-gitops
-  labels:
-    name: idev-hello-openshift
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
@@ -34,35 +28,38 @@ spec:
   generators:
     - list:
         elements:
-          - namespace: idev1
-          - namespace: idev2
-          - namespace: idev3
+          - env: idev1
+          - env: idev2
+          - env: idev3
 
   template:
     metadata:
-      # Generated Application names: idev1-hello-openshift, etc.
-      name: '{{.namespace}}-hello-openshift'
+      name: '{{.env}}-hello-openshift'
       labels:
-        name: '{{.namespace}}-hello-openshift'
-        idev-env: '{{.namespace}}'
+        idev-env: '{{.env}}'
     spec:
       project: rae-lab-project
       source:
         repoURL: https://github.com/ratikk/openshift-rae-gitops.git
         targetRevision: main
         path: deployment/hello-openshift
+        helm:
+          # Load base values, then the per-env override file. Later files win,
+          # so values-idevN.yaml's image.tag overrides the base.
+          valueFiles:
+            - values.yaml
+            - 'values-{{.env}}.yaml'
       destination:
-        # Target the SPOKE by registered name (not in-cluster server URL).
-        name: idev
-        namespace: '{{.namespace}}'
+        name: idev                      # the registered spoke cluster (by name)
+        namespace: '{{.env}}'
       syncPolicy:
-        automated:
+        automated:                      # AUTO-SYNC: tag commit → deploy
           prune: true
           selfHeal: true
           allowEmpty: false
         syncOptions:
           - Validate=true
-          - CreateNamespace=true   # creates idev1/2/3 on the spoke on first sync
+          - CreateNamespace=true
         retry:
           limit: 5
           backoff:

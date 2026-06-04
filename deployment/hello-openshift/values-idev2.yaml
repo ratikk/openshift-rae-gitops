@@ -1,0 +1,31 @@
+# =============================================================================
+# values-idev2.yaml — per-environment overrides for the IDEV1 deployment
+#
+# OPS ENGINEER: to deploy a new build to idev2, change image.tag below to the
+# tag Jenkins pushed to JFrog, commit, and push. Argo CD detects the one-line
+# diff and rolls out the new image (~3 min, auto-sync).
+#
+# This file overrides deployment/hello-openshift/values.yaml for idev2 ONLY.
+# Everything not listed here inherits from the base values.yaml.
+# =============================================================================
+
+# ▼▼▼ THE ONE LINE YOU EDIT TO RELEASE ▼▼▼
+image:
+  repository: <your-jfrog-host>/tiers-docker/hello-openshift   # set once
+  tag: "122.1.0"          # ← ops engineer bumps this to deploy a new build
+# ▲▲▲ THE ONE LINE YOU EDIT TO RELEASE ▲▲▲
+
+namespace: idev2
+
+# Private JFrog pull — names the dockerconfigjson Secret that the
+# ExternalSecret (externalsecret-jfrog.yaml) materializes in this namespace.
+imagePullSecret: jfrog-pull
+
+# Demo/welcome string surfaced by the app (proves which release is live).
+environmentVariables:
+  ENV: idev2
+  RELEASE: "122.1.0"
+
+ingress:
+  enabled: true
+  host: hello-openshift.apps.idev.ocp.tiers-insight.com

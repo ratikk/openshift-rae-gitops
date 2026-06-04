@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Release Runbook — Tag-Driven Deploy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1a1410;--paper:#f4efe6;--paper2:#ece4d6;--rule:#c9bca6;--accent:#9a3412;--pine:#1e5945;--gold:#b8862c;--mute:#6b5d4a;--code:#221c16;--code-ink:#e9dcc6;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:'Fraunces',Georgia,serif;font-size:18px;line-height:1.65;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:880px;margin:0 auto;padding:0 26px;}
+header.mast{border-bottom:3px double var(--ink);padding:48px 0 24px;margin-bottom:8px;}
+.kicker{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin-bottom:14px;}
+h1{font-size:44px;line-height:1.04;font-weight:600;margin:0 0 10px;letter-spacing:-.02em;}
+h1 em{font-style:italic;color:var(--pine);}
+.dek{font-size:19px;color:var(--mute);max-width:680px;margin:0;}
+.meta{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute);margin-top:18px;display:flex;flex-wrap:wrap;gap:6px 20px;}
+.meta b{color:var(--ink);}
+section{margin:36px 0;}
+h2{font-size:12.5px;font-family:'JetBrains Mono',monospace;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);border-top:2px solid var(--ink);padding-top:12px;margin:0 0 4px;}
+h3{font-size:25px;font-weight:600;margin:.2em 0 .5em;letter-spacing:-.01em;}
+h4{font-size:18px;font-weight:600;margin:1.3em 0 .3em;color:var(--pine);}
+p{margin:.65em 0;}
+strong{font-weight:700;}
+pre{background:var(--code);color:var(--code-ink);font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;padding:16px 18px;border-radius:6px;overflow-x:auto;margin:12px 0;border:1px solid #000;}
+pre .c{color:#8a9a8a;}pre .k{color:#e0a458;}pre .s{color:#9cc4a8;}
+code{font-family:'JetBrains Mono',monospace;font-size:.84em;background:var(--paper2);padding:1px 6px;border-radius:3px;}
+pre code{background:none;padding:0;}
+figure{margin:22px 0;background:var(--paper2);border:1px solid var(--rule);padding:20px;}
+figure svg{display:block;width:100%;height:auto;}
+figcaption{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute);margin-top:12px;text-align:center;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--rule);vertical-align:top;}
+th{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);border-bottom:2px solid var(--ink);}
+.note{border-left:4px solid var(--pine);background:var(--paper2);padding:13px 17px;margin:16px 0;font-size:15px;}
+.warn{border-left:4px solid var(--accent);background:#f6e8df;padding:13px 17px;margin:16px 0;font-size:15px;}
+.note .lab,.warn .lab{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;display:block;margin-bottom:4px;}
+.note .lab{color:var(--pine);}.warn .lab{color:var(--accent);}
+.step{display:flex;gap:16px;margin:14px 0;align-items:flex-start;}
+.step .num{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--gold);min-width:38px;}
+.step .body{flex:1;}
+.step .body b{display:block;font-size:17px;margin-bottom:2px;}
+footer{border-top:3px double var(--ink);margin-top:48px;padding:20px 0 50px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute);}
+.big{background:var(--code);border:2px solid var(--gold);border-radius:6px;padding:18px 20px;margin:18px 0;}
+.big .t{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.15em;color:var(--gold);margin-bottom:8px;}
+.big code{background:#2e2620;color:#e9dcc6;font-size:14px;}
+</style></head><body><div class="wrap">
+
+<header class="mast">
+  <div class="kicker">HHS / TIERS · IDEV Release Procedure</div>
+  <h1>Releasing a build <em>— the tag is the trigger</em></h1>
+  <p class="dek">Jenkins builds and pushes to JFrog. An ops engineer bumps one line in git. Argo CD deploys. Nothing deploys unless a tag changes.</p>
+  <div class="meta"><span><b>REPO</b> ratikk/openshift-rae-gitops</span><span><b>ENVS</b> idev1 / idev2 / idev3</span><span><b>SYNC</b> automatic (~3 min)</span></div>
+</header>
+
+<section>
+<h2>01 · The flow</h2>
+<h3>Three actors, two handoffs</h3>
+<figure><svg viewBox="0 0 820 200" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="11">
+<defs><marker id="r" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#1a1410"/></marker></defs>
+<g text-anchor="middle">
+<rect x="20" y="70" width="160" height="60" rx="5" fill="#221c16"/><text x="100" y="94" fill="#e0a458" font-weight="700">Jenkins</text><text x="100" y="112" fill="#e9dcc6" font-size="9">build → push image</text>
+<line x1="180" y1="100" x2="225" y2="100" stroke="#1a1410" stroke-width="1.5" marker-end="url(#r)"/>
+<rect x="227" y="70" width="160" height="60" rx="5" fill="#f4efe6" stroke="#b8862c" stroke-width="1.5"/><text x="307" y="94" font-weight="700">JFrog</text><text x="307" y="112" fill="#6b5d4a" font-size="9">app:122.1.0</text>
+<line x1="387" y1="100" x2="432" y2="100" stroke="#1a1410" stroke-width="1.5" marker-end="url(#r)"/>
+<rect x="434" y="62" width="170" height="76" rx="5" fill="#f6e8df" stroke="#9a3412" stroke-width="2"/><text x="519" y="84" font-weight="700" font-size="11">Ops engineer</text><text x="519" y="101" fill="#9a3412" font-size="9">edit tag in git</text><text x="519" y="116" fill="#9a3412" font-size="9">commit + push</text><text x="519" y="130" fill="#6b5d4a" font-size="8">← the change-control gate</text>
+<line x1="604" y1="100" x2="649" y2="100" stroke="#1a1410" stroke-width="1.5" marker-end="url(#r)"/>
+<rect x="651" y="70" width="150" height="60" rx="5" fill="#1e5945"/><text x="726" y="94" fill="#fff" font-weight="700">Argo CD</text><text x="726" y="112" fill="#cfe6da" font-size="9">sees diff → deploys</text>
+</g>
+<text x="410" y="30" fill="#1a1410" font-size="11" text-anchor="middle" font-weight="700">CI ──────────────►  human gate  ──────────────► CD</text>
+<text x="410" y="175" fill="#6b5d4a" font-size="9.5" text-anchor="middle">No tag change in git = no diff = Argo does nothing. The commit IS the trigger.</text>
+</svg><figcaption>Jenkins ends at JFrog. The engineer's one-line commit is the deliberate gate. Argo reconciles only on the diff.</figcaption></figure>
+</section>
+
+<section>
+<h2>02 · To deploy a new build</h2>
+<h3>One line, one commit</h3>
+
+<div class="step"><div class="num">1</div><div class="body"><b>Confirm Jenkins pushed the image to JFrog.</b>
+The build you want must exist as a tag in JFrog (e.g. <code>122.1.0</code>). Jenkins' job ends here — it does not touch git.</div></div>
+
+<div class="step"><div class="num">2</div><div class="body"><b>Edit the one tag line for the target environment.</b>
+Open the per-env values file and change <code>image.tag</code>:</div></div>
+
+<div class="big"><div class="t">deployment/hello-openshift/values-idev1.yaml</div>
+<pre style="margin:0;border:none;">image:
+  repository: &lt;jfrog-host&gt;/tiers-docker/hello-openshift
+  tag: <span class="s">"122.0.0"</span>   <span class="c"># ← change to the new tag, e.g. "122.1.0"</span></pre></div>
+
+<div class="step"><div class="num">3</div><div class="body"><b>Commit and push.</b>
+<pre><span class="c"># clean, auditable one-line diff</span>
+git commit -am <span class="s">"release: idev1 → 122.1.0"</span>
+git push</pre></div></div>
+
+<div class="step"><div class="num">4</div><div class="body"><b>Argo CD deploys automatically (~3 min).</b>
+It detects the diff in <code>values-idev1.yaml</code>, re-renders the chart with the new tag, and rolls out. Only <strong>idev1</strong> changes — idev2 and idev3 are untouched.</div></div>
+
+<div class="note"><span class="lab">Each env is independent</span>
+idev1, idev2, idev3 each read their own <code>values-idevN.yaml</code>. Bumping one env's tag never affects the others — that is the parallel-release model. One env can run a build under test while another runs the next dev build.</div>
+</section>
+
+<section>
+<h2>03 · Why "only on tag change"</h2>
+<h3>Argo deploys on diffs, not on schedules</h3>
+<p>Argo CD continuously compares <em>desired state</em> (git) against <em>live state</em> (cluster). It acts <strong>only when they differ</strong>. The single thing that changes desired state for a release is the engineer editing <code>image.tag</code>. So:</p>
+<table><thead><tr><th>Action</th><th>Argo behavior</th></tr></thead><tbody>
+<tr><td>Jenkins pushes a new image to JFrog (no git change)</td><td><strong>Nothing</strong> — git unchanged, no diff</td></tr>
+<tr><td>Engineer bumps <code>image.tag</code> + commits</td><td><strong>Deploys</strong> — one-line diff detected</td></tr>
+<tr><td>Re-run a build with the same tag</td><td><strong>Nothing</strong> — tag value identical</td></tr>
+<tr><td>Someone hand-edits the live Deployment</td><td><strong>Reverted</strong> — selfHeal restores git's tag</td></tr>
+</tbody></table>
+<p>You do not configure a "trigger." The git commit <em>is</em> the trigger; the absence of a commit is the absence of a deploy.</p>
+</section>
+
+<section>
+<h2>04 · JFrog pull credentials (via Vault + ESO)</h2>
+<h3>The private-registry secret never touches git</h3>
+<p>Pulling from private JFrog needs a <code>dockerconfigjson</code> pull Secret in each namespace. It is <strong>not</strong> committed — it is fetched from Vault by External Secrets, reusing the stack already in the cluster.</p>
+
+<h4>One-time: store JFrog creds in Vault</h4>
+<pre>oc -n vault-system exec vault-0 -- vault kv put secret/jfrog \
+  username=<span class="s">'&lt;jfrog-user&gt;'</span> \
+  password=<span class="s">'&lt;jfrog-token&gt;'</span> \
+  host=<span class="s">'&lt;jfrog-host&gt;'</span></pre>
+
+<h4>Per namespace: the ExternalSecret materializes the pull Secret</h4>
+<p><code>externalsecret-jfrog.yaml</code> (one per idev namespace) reads <code>secret/data/jfrog</code> via the <code>lab-vault</code> ClusterSecretStore and renders a Secret named <code>jfrog-pull</code>. The chart's <code>imagePullSecret: jfrog-pull</code> then uses it. Validate:</p>
+<pre><span class="c"># the pull secret was materialized by ESO</span>
+oc -n idev1 get secret jfrog-pull -o jsonpath=<span class="s">'{.type}{"\n"}'</span>
+<span class="c"># → kubernetes.io/dockerconfigjson</span>
+
+<span class="c"># the ExternalSecret is healthy</span>
+oc -n idev1 get externalsecret jfrog-pull</pre>
+<div class="note"><span class="lab">Why this way</span>
+The image-pull credential is a secret like any other — so it flows Vault → ESO → namespace Secret, exactly like application secrets. Nothing sensitive lands in the GitOps repo; only a <em>reference</em> to the Vault path does.</div>
+</section>
+
+<section>
+<h2>05 · Verify a release landed</h2>
+<pre><span class="c"># the running image matches the tag you committed</span>
+oc -n idev1 get deploy hello-openshift \
+  -o jsonpath=<span class="s">'{.spec.template.spec.containers[0].image}{"\n"}'</span>
+
+<span class="c"># Argo shows the app Synced + Healthy on the new revision</span>
+oc -n openshift-gitops get application idev1-hello-openshift
+
+<span class="c"># the app responds with its release string</span>
+curl -sk <span class="s">"https://$(oc -n idev1 get route -o jsonpath='{.items[0].spec.host}')"</span></pre>
+<div class="warn"><span class="lab">If it didn't deploy</span>
+Check, in order: (1) did the commit actually change <code>image.tag</code>? <code>git show</code>; (2) is the Argo app Synced? if OutOfSync, the auto-sync may be paused; (3) <code>ImagePullBackOff</code>? the <code>jfrog-pull</code> secret is missing or the tag doesn't exist in JFrog.</div>
+</section>
+
+<footer>
+HHS/TIERS · IDEV release procedure · Jenkins → JFrog → git tag → Argo CD<br>
+per-env values files · auto-sync · pull creds via Vault + External Secrets
+</footer>
+</div></body></html>

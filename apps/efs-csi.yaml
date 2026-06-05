@@ -1,0 +1,40 @@
+# =============================================================================
+# apps/efs-csi.yaml — AWS EFS CSI Driver Operator (OLM, redhat-operators)
+#
+# OLM Subscription is the correct install path here: this is the FIRST-PARTY
+# Red Hat operator from the redhat-operators catalog — NOT the archived
+# community-operators wrapper that caused the InstallPlanFailed loops behind
+# the ESO pivot. There is no supportable upstream-Helm equivalent for the EFS
+# CSI driver on OpenShift, so Subscription is both correct and the only real option.
+# Post-install: watch the InstallPlan in openshift-cluster-csi-drivers closely.
+# =============================================================================
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: efs-csi
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ratikk/openshift-rae-gitops.git
+    targetRevision: main
+    path: overlays/efs-csi/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-cluster-csi-drivers
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        maxDuration: 5m
+        factor: 2

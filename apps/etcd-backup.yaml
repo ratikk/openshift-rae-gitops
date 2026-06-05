@@ -1,0 +1,39 @@
+# =============================================================================
+# apps/etcd-backup.yaml — etcd snapshot CronJob -> S3
+#
+# Runs the OpenShift-supported cluster-backup.sh on a control-plane node and
+# ships the snapshot to the etcd-backup S3 bucket every 6h.
+# Post-install wiring required (Step 7.12): fill the SA IRSA role-arn and the
+# bucket name from terraform outputs, and federate the role trust to the
+# cluster OIDC provider. Until then aws s3 cp fails (backups won't land).
+# =============================================================================
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: etcd-backup
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ratikk/openshift-rae-gitops.git
+    targetRevision: main
+    path: overlays/etcd-backup/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-etcd-backup
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        maxDuration: 5m
+        factor: 2

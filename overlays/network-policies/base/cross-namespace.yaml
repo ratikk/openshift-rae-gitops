@@ -1,0 +1,57 @@
+# Cross-component allows. THE CRITICAL ONE is ESO -> Vault: External Secrets Operator
+# pods in external-secrets must reach Vault in vault-system, or ESO goes degraded and
+# secrets stop syncing (the exact failure mode this whole build has been fighting).
+---
+# external-secrets EGRESS -> vault-system (Vault API, typically 8200)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-vault
+  namespace: external-secrets
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: vault-system
+      ports:
+        - { protocol: TCP, port: 8200 }
+---
+# vault-system INGRESS <- external-secrets (accept the ESO connections above)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-from-eso
+  namespace: vault-system
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: external-secrets
+      ports:
+        - { protocol: TCP, port: 8200 }
+---
+# external-secrets EGRESS -> kube-apiserver.
+# ESO needs the API to read/write Secrets and its CRDs. The apiserver is reachable on the
+# default Service network (kubernetes.default.svc, 172.30.0.1:443) which NetworkPolicy
+# treats as off-cluster egress; allow 443/6443 to the API service IP block broadly.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-apiserver
+  namespace: external-secrets
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - ports:
+        - { protocol: TCP, port: 443 }
+        - { protocol: TCP, port: 6443 }

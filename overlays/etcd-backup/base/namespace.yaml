@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-etcd-backup
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  labels:
+    # Backup pod runs privileged/hostPath on a master, so it needs the privileged
+    # pod-security profile. Without these labels PSA will reject the pod.
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

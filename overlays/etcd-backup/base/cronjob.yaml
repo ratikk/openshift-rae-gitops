@@ -1,0 +1,93 @@
+# Runs every 6 hours. Lands on a control-plane node, runs the OpenShift-supported
+# cluster-backup.sh against the host's static-pod resources, then ships the snapshot
+# tarball to S3 and prunes local copies.
+#
+# >>> ACTION REQUIRED <<<
+#   Replace __ETCD_BACKUP_BUCKET__ with: terraform output -raw etcd_backup_bucket
+#
+# Image: uses the cluster's own tools image is awkward (cluster-backup.sh lives on the
+# host at /usr/local/bin), so we mount the host root and call the host script via chroot,
+# using a UBI image that has bash + awscli installable. We install awscli at runtime to
+# avoid baking a custom image; if egress to pip is blocked, switch to an image with awscli
+# preinstalled (e.g. amazon/aws-cli) and chroot to call the host backup script.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: etcd-backup
+  namespace: openshift-etcd-backup
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  schedule: "0 */6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app: etcd-backup
+        spec:
+          serviceAccountName: etcd-backup
+          restartPolicy: Never
+          hostNetwork: true
+          hostPID: true
+          # Schedule onto a control-plane node; tolerate its taint.
+          nodeSelector:
+            node-role.kubernetes.io/master: ""
+          tolerations:
+            - key: node-role.kubernetes.io/master
+              operator: Exists
+              effect: NoSchedule
+          containers:
+            - name: backup
+              image: registry.access.redhat.com/ubi9/ubi:latest
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                privileged: true
+                runAsUser: 0
+              env:
+                - name: S3_BUCKET
+                  value: "__ETCD_BACKUP_BUCKET__"
+                - name: AWS_REGION
+                  value: "us-east-1"
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  TS="$(date -u +%Y%m%dT%H%M%SZ)"
+                  HOSTBACKUP="/host/var/tmp/etcd-backup-${TS}"
+
+                  echo "[1/4] Running cluster-backup.sh on host via chroot..."
+                  # cluster-backup.sh ships on RHCOS control-plane hosts.
+                  chroot /host /bin/bash -c \
+                    "/usr/local/bin/cluster-backup.sh /var/tmp/etcd-backup-${TS}"
+
+                  echo "[2/4] Packaging snapshot..."
+                  TARBALL="/tmp/etcd-backup-${TS}.tar.gz"
+                  tar -czf "${TARBALL}" -C "${HOSTBACKUP}" .
+
+                  echo "[3/4] Ensuring awscli present..."
+                  if ! command -v aws >/dev/null 2>&1; then
+                    dnf install -y awscli2 >/dev/null 2>&1 || dnf install -y awscli >/dev/null 2>&1
+                  fi
+
+                  echo "[4/4] Uploading to s3://${S3_BUCKET}/ ..."
+                  aws s3 cp "${TARBALL}" "s3://${S3_BUCKET}/etcd/etcd-backup-${TS}.tar.gz" \
+                    --region "${AWS_REGION}"
+
+                  echo "Cleaning up local snapshot on host..."
+                  rm -rf "${HOSTBACKUP}" "${TARBALL}"
+                  echo "etcd backup ${TS} complete."
+              volumeMounts:
+                - name: host
+                  mountPath: /host
+          volumes:
+            - name: host
+              hostPath:
+                path: /
+                type: Directory

@@ -22,3 +22,4 @@ resources:
   - namespace.yaml
   - scc-binding.yaml
   - vault-bootstrap-job.yaml
+  - rbac-eso-restart.yaml

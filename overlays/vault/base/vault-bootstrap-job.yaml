@@ -85,7 +85,7 @@ spec:
           # Using kubernetes.io official kubectl image — no auth needed,
           # no rate limits, kubectl binary at /bin/kubectl.
           # (Tried origin-cli first but kubectl symlink not guaranteed there.)
-          image: docker.io/bitnami/kubectl:1.31
+          image: registry.redhat.io/openshift4/ose-cli:latest
           env:
             - name: VAULT_ADDR
               value: "http://vault.vault-system.svc:8200"

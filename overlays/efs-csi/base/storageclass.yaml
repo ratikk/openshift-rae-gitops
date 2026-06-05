@@ -3,7 +3,7 @@
 # >>> ACTION REQUIRED before this app can sync healthy <<<
 # fileSystemId below is a PLACEHOLDER. After `terraform apply`, run:
 #   terraform output -raw efs_file_system_id
-# and replace __EFS_FS_ID__ with the value (looks like fs-0123456789abcdef0).
+# and replace fs-02fc1227ce46caf03 with the value (looks like fs-0123456789abcdef0).
 # Commit, then let Argo sync. The driver will not provision PVCs until this is real.
 #
 # sync-wave +10: after the ClusterCSIDriver (+5) so the provisioner is registered.
@@ -16,7 +16,7 @@ metadata:
 provisioner: efs.csi.aws.com
 parameters:
   provisioningMode: efs-ap
-  fileSystemId: __EFS_FS_ID__
+  fileSystemId: fs-02fc1227ce46caf03
   directoryPerms: "700"
   # gidRangeStart / gidRangeEnd / basePath left at operator defaults.
 reclaimPolicy: Delete

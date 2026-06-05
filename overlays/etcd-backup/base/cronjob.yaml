@@ -3,7 +3,7 @@
 # tarball to S3 and prunes local copies.
 #
 # >>> ACTION REQUIRED <<<
-#   Replace __ETCD_BACKUP_BUCKET__ with: terraform output -raw etcd_backup_bucket
+#   Replace hub-etcd-backup-131b9cad with: terraform output -raw etcd_backup_bucket
 #
 # Image: uses the cluster's own tools image is awkward (cluster-backup.sh lives on the
 # host at /usr/local/bin), so we mount the host root and call the host script via chroot,
@@ -51,7 +51,7 @@ spec:
                 runAsUser: 0
               env:
                 - name: S3_BUCKET
-                  value: "__ETCD_BACKUP_BUCKET__"
+                  value: "hub-etcd-backup-131b9cad"
                 - name: AWS_REGION
                   value: "us-east-1"
               command:

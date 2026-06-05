@@ -1,0 +1,23 @@
+# StorageClass for dynamic EFS access-point provisioning.
+#
+# >>> ACTION REQUIRED before this app can sync healthy <<<
+# fileSystemId below is a PLACEHOLDER. After `terraform apply`, run:
+#   terraform output -raw efs_file_system_id
+# and replace __EFS_FS_ID__ with the value (looks like fs-0123456789abcdef0).
+# Commit, then let Argo sync. The driver will not provision PVCs until this is real.
+#
+# sync-wave +10: after the ClusterCSIDriver (+5) so the provisioner is registered.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: __EFS_FS_ID__
+  directoryPerms: "700"
+  # gidRangeStart / gidRangeEnd / basePath left at operator defaults.
+reclaimPolicy: Delete
+volumeBindingMode: Immediate

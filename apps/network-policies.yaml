@@ -1,0 +1,32 @@
+# =============================================================================
+# apps/network-policies.yaml — baseline deny + scoped allows (DORMANT)
+#
+# DORMANT BY DESIGN: there is intentionally NO syncPolicy.automated block, so
+# this app stays OutOfSync and does NOT apply on first boot. Activate ONLY after
+# the post-install validation checklist passes, via a manual sync:
+#     argocd app sync network-policies      (or the Sync button in the UI)
+# Then re-verify inter-component traffic (ESO<->Vault, gitops, monitoring scrape).
+#
+# Because there is no automated block, the retry block (which lives under
+# automated in house style) is omitted; manual sync uses Argo's own retry.
+# =============================================================================
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: network-policies
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ratikk/openshift-rae-gitops.git
+    targetRevision: main
+    path: overlays/network-policies/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true

@@ -1,0 +1,23 @@
+# aws-efs-csi-driver-operator subscription.
+# NOTE: namespace openshift-cluster-csi-drivers is a Red Hat fixed namespace that
+# ALREADY EXISTS and ships its OWN OperatorGroup. We deliberately do NOT create a
+# namespace.yaml or operatorgroup.yaml here — adding a second OperatorGroup to that
+# ns would put it in a MultipleOperatorGroups error state and wedge OLM.
+#
+# VERIFY at sync time (1 line):
+#   oc get packagemanifest aws-efs-csi-driver-operator -n openshift-marketplace \
+#     -o jsonpath='{.status.channels[*].name}'
+# Expect "stable" to be present for 4.18. Package name confirmed: aws-efs-csi-driver-operator.
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: aws-efs-csi-driver-operator
+  namespace: openshift-cluster-csi-drivers
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  channel: stable
+  name: aws-efs-csi-driver-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic

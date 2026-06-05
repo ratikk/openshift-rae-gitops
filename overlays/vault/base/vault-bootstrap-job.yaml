@@ -85,7 +85,7 @@ spec:
           # Using kubernetes.io official kubectl image — no auth needed,
           # no rate limits, kubectl binary at /bin/kubectl.
           # (Tried origin-cli first but kubectl symlink not guaranteed there.)
-          image: registry.k8s.io/kubectl:v1.31.0
+          image: docker.io/bitnami/kubectl:1.31
           env:
             - name: VAULT_ADDR
               value: "http://vault.vault-system.svc:8200"
@@ -211,3 +211,7 @@ spec:
               echo "==> Done. Vault is initialized, unsealed, and configured for ESO."
               curl -s -H "X-Vault-Token: $ROOT_TOKEN" "$VAULT_ADDR/v1/sys/seal-status" | head -5
               echo
+              echo "==> [6/6] Restarting ESO so it re-reads the freshly-seeded Vault..."
+              kubectl -n "$ESO_SA_NAMESPACE" rollout restart deploy/external-secrets
+              kubectl -n "$ESO_SA_NAMESPACE" rollout status  deploy/external-secrets --timeout=180s
+              echo "==> ESO restarted."

@@ -1,0 +1,183 @@
+# Baseline policies applied to each protected namespace:
+#   1. default-deny-all (ingress + egress)
+#   2. allow-same-namespace (pods can talk within their own ns)
+#   3. allow-dns-egress (so pods can resolve via openshift-dns — without this,
+#      everything silently breaks on name resolution)
+#   4. allow-monitoring-ingress (so Prometheus in openshift-monitoring can scrape)
+#
+# Namespaces covered: vault-system, openshift-gitops, external-secrets, openshift-monitoring.
+# Cross-component allows (e.g. ESO -> Vault) live in cross-namespace.yaml.
+#
+# sync-wave +5 so namespaces/labels settle first (these are existing namespaces, but the
+# wave keeps ordering deterministic if anything here is templated later).
+---
+# ============ vault-system ============
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: vault-system
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: vault-system
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: vault-system
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-dns
+      ports:
+        - { protocol: UDP, port: 5353 }
+        - { protocol: TCP, port: 5353 }
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-ingress
+  namespace: vault-system
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-monitoring
+---
+# ============ external-secrets ============
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: external-secrets
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: external-secrets
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: external-secrets
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-dns
+      ports:
+        - { protocol: UDP, port: 5353 }
+        - { protocol: TCP, port: 5353 }
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-ingress
+  namespace: external-secrets
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-monitoring
+---
+# ============ openshift-gitops ============
+# NOTE: openshift-gitops hosts Argo CD, which must reach the kube-apiserver (egress to
+# the host network / API) and Git over HTTPS. A blanket egress-deny here can wedge Argo's
+# ability to reconcile. We allow same-ns + DNS + broad egress for gitops specifically,
+# and only restrict INGRESS. This is the safest posture for the controller namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: openshift-gitops
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: openshift-gitops
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector: {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-and-router-ingress
+  namespace: openshift-gitops
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-monitoring
+        # Argo UI/route reachability via the ingress routers.
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-ingress

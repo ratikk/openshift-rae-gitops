@@ -1,0 +1,11 @@
+# ClusterCSIDriver tells the operator to deploy the actual EFS CSI driver.
+# Name MUST be efs.csi.aws.com (matches the CSIDriver object the operator manages).
+# sync-wave +5: after the Subscription (wave 0) so the CRD exists before we create the CR.
+apiVersion: operator.openshift.io/v1
+kind: ClusterCSIDriver
+metadata:
+  name: efs.csi.aws.com
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  managementState: Managed

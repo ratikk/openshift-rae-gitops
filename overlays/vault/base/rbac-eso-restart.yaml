@@ -1,0 +1,42 @@
+# (3) RBAC for 6d: the vault-bootstrap SA lives in vault-system but must restart the ESO
+# deployment in external-secrets. `kubectl rollout restart deploy/...` does a PATCH on the
+# Deployment (it sets a restartedAt annotation), and `rollout status` reads the Deployment
+# plus its ReplicaSets/Pods. So we grant get/list/watch/patch on deployments and
+# get/list/watch on replicasets + pods, scoped to the external-secrets namespace only.
+#
+# The subject SA (vault-bootstrap, ns vault-system) is assumed to already exist from the
+# current vault overlay. If it does not, add a ServiceAccount manifest for it there.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vault-bootstrap-eso-restart
+  namespace: external-secrets
+  annotations:
+    argocd.argoproj.io/sync-wave: "9"   # before the Job (wave 10)
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vault-bootstrap-eso-restart
+  namespace: external-secrets
+  annotations:
+    argocd.argoproj.io/sync-wave: "9"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: vault-bootstrap-eso-restart
+subjects:
+  - kind: ServiceAccount
+    name: vault-bootstrap
+    namespace: vault-system

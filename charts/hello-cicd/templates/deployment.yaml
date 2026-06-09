@@ -1,0 +1,63 @@
+# =============================================================================
+# hello-cicd — templated workload. ONE file, all three environments render it
+# with their own values. The Values placeholders are where per-env
+# differences (namespace, image tag) get injected by Helm.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.env.namespace }}
+  labels:
+    app: hello-cicd
+    environment: {{ .Values.env.name }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-cicd
+  namespace: {{ .Values.env.namespace }}
+  labels:
+    app: hello-cicd
+    environment: {{ .Values.env.name }}
+    release: "{{ .Values.image.tag }}"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: hello-cicd
+      environment: {{ .Values.env.name }}
+  template:
+    metadata:
+      labels:
+        app: hello-cicd
+        environment: {{ .Values.env.name }}
+        release: "{{ .Values.image.tag }}"
+    spec:
+      containers:
+        - name: hello-cicd
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - { containerPort: 8080, name: http }
+          env:
+            - name: ENVIRONMENT
+              value: {{ .Values.env.name | quote }}
+            - name: RELEASE
+              value: {{ .Values.image.tag | quote }}
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecret }}

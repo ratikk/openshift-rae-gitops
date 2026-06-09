@@ -1,0 +1,33 @@
+# =============================================================================
+# hello-cicd / idev3 — one ArgoCD Application per environment.
+# Same chart (charts/hello-cicd), env-specific values file. app-of-apps in
+# apps/ auto-adopts this. Syncs INDEPENDENTLY of the other idev environments.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hello-idev3
+  namespace: openshift-gitops
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ratikk/openshift-rae-gitops.git
+    targetRevision: main
+    path: charts/hello-cicd
+    helm:
+      valueFiles:
+        - values-idev3.yaml          # ← the only line that differs between the three apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: idev3
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff: { duration: 10s, factor: 2, maxDuration: 2m }

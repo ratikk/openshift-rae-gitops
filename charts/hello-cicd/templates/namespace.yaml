@@ -1,0 +1,15 @@
+{{- /*
+Namespace creation is OPTIONAL and gated by createNamespace (default true to
+preserve current behavior). The MORE standard pattern is to omit this and let
+ArgoCD create the namespace via syncOptions: CreateNamespace=true. If your
+ArgoCD Application has that option, set createNamespace: false in values to
+drop this and follow convention.
+*/ -}}
+{{- if .Values.createNamespace }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.env.namespace }}
+  labels:
+    {{- include "hello-cicd.labels" . | nindent 4 }}
+{{- end }}

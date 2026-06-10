@@ -1,31 +1,32 @@
 # =============================================================================
-# hello-cicd — DEFAULT values (the contract). Per-environment values files
-# (values-idev1/2/3.yaml) override only what differs. Anything not overridden
-# falls back to these. This is the DRY point: templates are written once,
-# every environment shares them, and only these knobs change per env.
+# hello-cicd CHART DEFAULTS (the contract).
+# This chart is a PURE, REUSABLE implementation. It contains NO environment-
+# specific values. Each environment supplies its own values file from
+# ../../environments/<env>/values.yaml (referenced by that env's ArgoCD app).
+# These defaults are only sane fallbacks the templates need to render.
 # =============================================================================
 
-# --- the release: this is what "120 / 121 / 122" maps to ---
 image:
   repository: triald3uyq5.jfrog.io/sample-docker/hello-cicd
-  tag: "latest"          # OVERRIDDEN per env (120 / 121 / 122) — the promotion knob
+  tag: "latest"          # ALWAYS overridden by an environment's values
   pullPolicy: IfNotPresent
 
-# --- environment identity (OVERRIDDEN per env) ---
 env:
-  name: default          # idev1 / idev2 / idev3
-  namespace: default     # idev1 / idev2 / idev3
+  name: REPLACE_ME       # supplied per environment
+  namespace: REPLACE_ME  # supplied per environment
 
-# --- workload sizing (same across envs unless an env needs to override) ---
 replicaCount: 2
 
 resources:
   requests: { cpu: 25m, memory: 32Mi }
   limits:   { cpu: 100m, memory: 64Mi }
 
-# --- pull secret (per-namespace docker-registry secret; created out-of-band) ---
 imagePullSecret: jfrog-pull
 
-# --- route host: empty = let OpenShift auto-generate per namespace ---
 route:
-  host: ""               # "" → hello-cicd-<namespace>.apps.hub.ocp.tiers-insight.com
+  host: ""
+
+createNamespace: true
+
+nameOverride: ""
+fullnameOverride: ""

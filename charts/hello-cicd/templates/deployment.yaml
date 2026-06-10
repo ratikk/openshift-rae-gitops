@@ -1,40 +1,28 @@
-# =============================================================================
-# hello-cicd — templated workload. ONE file, all three environments render it
-# with their own values. The Values placeholders are where per-env
-# differences (namespace, image tag) get injected by Helm.
-# =============================================================================
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ .Values.env.namespace }}
-  labels:
-    app: hello-cicd
-    environment: {{ .Values.env.name }}
----
+# hello-cicd — templated Deployment. One file, all environments render it with
+# their own values. Names/labels come from _helpers.tpl (idiomatic Helm); the
+# SELECTOR is kept exactly as before (app + environment) so upgrades don't hit
+# the immutable-selector error on the running deployments.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: hello-cicd
+  name: {{ include "hello-cicd.fullname" . }}
   namespace: {{ .Values.env.namespace }}
   labels:
-    app: hello-cicd
-    environment: {{ .Values.env.name }}
+    {{- include "hello-cicd.labels" . | nindent 4 }}
     release: "{{ .Values.image.tag }}"
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: hello-cicd
-      environment: {{ .Values.env.name }}
+      {{- include "hello-cicd.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: hello-cicd
-        environment: {{ .Values.env.name }}
+        {{- include "hello-cicd.selectorLabels" . | nindent 8 }}
         release: "{{ .Values.image.tag }}"
     spec:
       containers:
-        - name: hello-cicd
+        - name: {{ include "hello-cicd.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
@@ -53,7 +41,7 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 20
           resources:
-{{ toYaml .Values.resources | indent 12 }}
+            {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true

@@ -1,0 +1,14 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "hello-cicd.fullname" . }}
+  namespace: {{ .Values.env.namespace }}
+  labels:
+    {{- include "hello-cicd.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.route.host }}
+  host: {{ .Values.route.host }}
+  {{- end }}
+  to: { kind: Service, name: {{ include "hello-cicd.fullname" . }} }
+  port: { targetPort: http }
+  tls: { termination: edge, insecureEdgeTerminationPolicy: Redirect }

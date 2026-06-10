@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "hello-cicd.fullname" . }}
+  namespace: {{ .Values.env.namespace }}
+  labels:
+    {{- include "hello-cicd.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "hello-cicd.selectorLabels" . | nindent 4 }}
+  ports:
+    - { name: http, port: 80, targetPort: 8080 }

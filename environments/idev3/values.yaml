@@ -1,0 +1,17 @@
+# =============================================================================
+# idev3 ENVIRONMENT — owns what's different about idev3.
+# This file lives OUTSIDE the chart (the chart is pure implementation).
+# The idev3 ArgoCD Application points its Helm valueFiles at THIS file.
+#
+# To PROMOTE a release into idev3: change image.tag below, commit, push.
+# ArgoCD redeploys ONLY idev3.
+# =============================================================================
+env:
+  name: idev3
+  namespace: idev3
+
+image:
+  tag: "122"          # ← THE promotion knob for idev3
+
+# (idev3 could also override replicaCount, resources, route.host here if it
+#  needed to differ — but it doesn't, so it inherits the chart defaults.)

@@ -1,6 +1,0 @@
-# idev2 — pinned to release 121. Overrides ONLY what differs from values.yaml.
-env:
-  name: idev2
-  namespace: idev2
-image:
-  tag: "121"          # ← THE PROMOTION KNOB. Bump this + commit → ArgoCD redeploys ONLY idev2.

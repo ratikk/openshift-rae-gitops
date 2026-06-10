@@ -1,6 +1,6 @@
 apiVersion: v2
 name: hello-cicd
-description: Minimal app to demo multi-environment GitOps (idev1/2/3 on parallel releases)
+description: Reusable app chart — pure implementation. Environments live OUTSIDE this chart (see ../../environments/).
 type: application
-version: 0.1.0          # chart version — bump when TEMPLATES change, not on release promotion
-appVersion: "1.0"      # informational; the real release is values.image.tag
+version: 0.1.0          # bump when TEMPLATES change (not on release promotion)
+appVersion: "1.0"

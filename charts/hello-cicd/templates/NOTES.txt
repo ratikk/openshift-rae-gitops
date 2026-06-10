@@ -1,0 +1,13 @@
+hello-cicd deployed to namespace: {{ .Values.env.namespace }}
+Environment : {{ .Values.env.name }}
+Release tag : {{ .Values.image.tag }}
+Image       : {{ .Values.image.repository }}:{{ .Values.image.tag }}
+
+Route:
+{{- if .Values.route.host }}
+  https://{{ .Values.route.host }}
+{{- else }}
+  https://{{ include "hello-cicd.fullname" . }}-{{ .Values.env.namespace }}.apps.hub.ocp.tiers-insight.com
+{{- end }}
+
+To promote a new release: change image.tag in values-{{ .Values.env.name }}.yaml, commit, push.

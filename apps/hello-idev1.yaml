@@ -1,33 +1,31 @@
-# =============================================================================
-# hello-cicd / idev1 — one ArgoCD Application per environment.
-# Same chart (charts/hello-cicd), env-specific values file. app-of-apps in
-# apps/ auto-adopts this. Syncs INDEPENDENTLY of the other idev environments.
-# =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: hello-idev1
   namespace: openshift-gitops
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+  labels:
+    env: idev1
 spec:
   project: default
-  source:
-    repoURL: https://github.com/ratikk/openshift-rae-gitops.git
-    targetRevision: main
-    path: charts/hello-cicd
-    helm:
-      valueFiles:
-        - values-idev1.yaml          # ← the only line that differs between the three apps
   destination:
     server: https://kubernetes.default.svc
     namespace: idev1
+  # MULTI-SOURCE: the chart (implementation) and the env values (knobs) live in
+  # different folders. We reference the repo twice — once as the value source
+  # ($values), once as the chart, pulling valueFiles from the $values ref.
+  sources:
+    - repoURL: https://github.com/ratikk/openshift-rae-gitops.git
+      targetRevision: main
+      ref: values                       # name this ref so the chart can use it
+    - repoURL: https://github.com/ratikk/openshift-rae-gitops.git
+      targetRevision: main
+      path: charts/hello-cicd            # the PURE chart
+      helm:
+        valueFiles:
+          - $values/environments/idev1/values.yaml   # the env's knobs, from the other ref
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-    retry:
-      limit: 3
-      backoff: { duration: 10s, factor: 2, maxDuration: 2m }

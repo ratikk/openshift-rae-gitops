@@ -2,5 +2,5 @@ env:
   name: idev2
   namespace: idev2
 image:
-  tag: "124"
+  tag: "121"
   digest: "sha256:PASTE_124_DIGEST_HERE"

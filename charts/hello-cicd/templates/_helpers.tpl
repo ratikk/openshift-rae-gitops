@@ -42,3 +42,16 @@ SELECTOR labels — EXACTLY the original two. Immutable; never add to these.
 app: {{ include "hello-cicd.name" . }}
 environment: {{ .Values.env.name }}
 {{- end -}}
+
+{{/*
+Image reference: prefer immutable digest when image.digest is set, else tag.
+Digest-pinning bypasses registry tag negotiation (needed where the registry
+won't serve a tag to CRI-O). RELEASE env still uses the tag for a readable label.
+*/}}
+{{- define "hello-cicd.image" -}}
+{{- if .Values.image.digest -}}
+{{- printf "%s@%s" .Values.image.repository .Values.image.digest -}}
+{{- else -}}
+{{- printf "%s:%s" .Values.image.repository (.Values.image.tag | toString) -}}
+{{- end -}}
+{{- end -}}

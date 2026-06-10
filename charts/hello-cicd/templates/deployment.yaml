@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: {{ include "hello-cicd.name" . }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ include "hello-cicd.image" . }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - { containerPort: 8080, name: http }

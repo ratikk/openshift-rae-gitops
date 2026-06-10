@@ -1,17 +1,9 @@
-# =============================================================================
-# idev3 ENVIRONMENT — owns what's different about idev3.
-# This file lives OUTSIDE the chart (the chart is pure implementation).
-# The idev3 ArgoCD Application points its Helm valueFiles at THIS file.
-#
-# To PROMOTE a release into idev3: change image.tag below, commit, push.
-# ArgoCD redeploys ONLY idev3.
-# =============================================================================
+# idev3 environment. PROMOTION: normally change image.tag; but this JFrog trial
+# won't serve tags to CRI-O, so we pin by digest for a reliable pull. tag stays
+# for the human-readable RELEASE label. On a clean registry (HHS), drop digest.
 env:
   name: idev3
   namespace: idev3
-
 image:
-  tag: "122"          # ← THE promotion knob for idev3
-
-# (idev3 could also override replicaCount, resources, route.host here if it
-#  needed to differ — but it doesn't, so it inherits the chart defaults.)
+  tag: "122"
+  digest: "sha256:fe8d3d7a72920f6e46667d0a1bb3169078dc3edca727c88e8c5d1db9c6a499e4"

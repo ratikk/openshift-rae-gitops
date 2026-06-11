@@ -3,4 +3,4 @@ env:
   namespace: idev2
 image:
   tag: "121"
-  digest: "sha256:752790b576aa7c5fa1ecf0eb1f1f690d9da10d2fa490b2c10594cefe43fc937f"
+  digest: sha256:fe8d3d7a72920f6e46667d0a1bb3169078dc3edca727c88e8c5d1db9c6a499e4

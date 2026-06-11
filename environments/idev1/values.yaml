@@ -1,9 +1,7 @@
-# idev1 environment. PROMOTION: normally change image.tag; but this JFrog trial
-# won't serve tags to CRI-O, so we pin by digest for a reliable pull. tag stays
-# for the human-readable RELEASE label. On a clean registry (HHS), drop digest.
+# idev1 — now on ECR (real registry, serves by digest reliably).
 env:
   name: idev1
   namespace: idev1
 image:
-  tag: "120"
-  digest: "sha256:fe8d3d7a72920f6e46667d0a1bb3169078dc3edca727c88e8c5d1db9c6a499e4"
+  tag: "16"
+  digest: "sha256:eb9c6f83551a887b672ef3472745ba07e50949718339d15b4e318e2c6e3f583b"

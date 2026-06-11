@@ -7,7 +7,7 @@
 # =============================================================================
 
 image:
-  repository: triald3uyq5.jfrog.io/sample-docker/hello-cicd
+  repository: 025037641706.dkr.ecr.us-east-1.amazonaws.com/hello-cicd
   tag: "latest"          # ALWAYS overridden by an environment's values
   pullPolicy: IfNotPresent
 
@@ -21,7 +21,7 @@ resources:
   requests: { cpu: 25m, memory: 32Mi }
   limits:   { cpu: 100m, memory: 64Mi }
 
-imagePullSecret: jfrog-pull
+imagePullSecret: ecr-pull
 
 route:
   host: ""

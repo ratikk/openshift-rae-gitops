@@ -2,4 +2,5 @@ env:
   name: idev2
   namespace: idev2
 image:
-  tag: ""
+  tag: "14"
+  digest: "sha256:99c2d47dec19410c9020e1b714ad59a2ce78b2e25d9fefe39f982e7d27f9b6fa"

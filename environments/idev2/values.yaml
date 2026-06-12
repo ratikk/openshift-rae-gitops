@@ -1,6 +1,6 @@
-# idev2 — tag-only (HHS pattern). ECR serves tags reliably; promote by changing the tag.
+# idev2 — tag-only (HHS pattern)
 env:
   name: idev2
   namespace: idev2
 image:
-  tag: "16"
+  tag: "17"

@@ -3,4 +3,4 @@ env:
   name: idev2
   namespace: idev2
 image:
-  tag: "18"
+  tag: "19"

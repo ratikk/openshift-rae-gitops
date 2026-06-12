@@ -1,7 +1,6 @@
-# idev3 environment. Digest-pinned (JFrog trial won't serve tags to CRI-O).
+# idev3 — tag-only (HHS pattern). ECR serves tags reliably; promote by changing the tag.
 env:
   name: idev3
   namespace: idev3
 image:
-  tag: "123"
-  digest: sha256:fe8d3d7a72920f6e46667d0a1bb3169078dc3edca727c88e8c5d1db9c6a499e4
+  tag: "16"

@@ -1,7 +1,6 @@
-# idev1 — now on ECR (real registry, serves by digest reliably).
+# idev1 — tag-only (HHS pattern). ECR serves tags reliably.
 env:
   name: idev1
   namespace: idev1
 image:
   tag: "16"
-  digest: "sha256:eb9c6f83551a887b672ef3472745ba07e50949718339d15b4e318e2c6e3f583b"
